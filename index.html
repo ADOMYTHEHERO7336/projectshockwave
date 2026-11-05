@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05030f">
+<title>Games</title>
+<style>
+:root{--glass:rgba(255,255,255,.14);--edge:rgba(255,255,255,.2)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#05030f;color:#fff;
+ font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif}
+#sky{position:fixed;inset:0;width:100%;height:100%;display:block}
+.glass{background:var(--glass);border:1px solid var(--edge);backdrop-filter:blur(26px) saturate(1.7);-webkit-backdrop-filter:blur(26px) saturate(1.7)}
+
+/* status bar */
+#status{position:fixed;top:0;left:0;right:0;height:calc(44px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 28px 0;
+ display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:15px;z-index:5;pointer-events:none}
+#status .r{display:flex;gap:6px;align-items:center}
+#status svg{height:12px;fill:#fff}
+
+/* home */
+#home{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+ padding:calc(52px + env(safe-area-inset-top,0px)) 0 0;transition:transform .45s cubic-bezier(.2,.8,.2,1),filter .45s,opacity .45s}
+#home.away{transform:scale(.92);filter:blur(6px);opacity:.5}
+#pages{width:100%;max-width:480px;flex:1;min-height:0;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+#pages::-webkit-scrollbar{display:none}
+.page{flex:0 0 100%;scroll-snap-align:start;padding:8px 22px 0;display:flex;flex-direction:column;gap:20px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 8px;align-content:start}
+.app{background:none;border:0;color:#fff;font:inherit;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;padding:0;min-width:0}
+.ico{width:min(62px,17vw);aspect-ratio:1;border-radius:22.5%;display:grid;place-items:center;overflow:hidden;
+ font-weight:700;font-size:21px;letter-spacing:-.5px;box-shadow:0 6px 16px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.35);transition:transform .15s}
+.ico img{width:100%;height:100%;object-fit:cover}
+.app:active .ico{transform:scale(.88)}
+.app span{font-size:11.5px;line-height:1.15;text-align:center;max-width:100%;text-shadow:0 1px 3px rgba(0,0,0,.7);
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.app:focus-visible .ico{outline:3px solid #fff;outline-offset:3px}
+
+/* widget */
+.widget{border-radius:26px;padding:16px 20px;display:flex;align-items:flex-end;justify-content:space-between;height:calc(min(62px,17vw)*2 + 18px)}
+.widget .t{font-size:54px;font-weight:300;line-height:1;letter-spacing:-2px}
+.widget .d{font-size:14px;opacity:.85;text-align:right;line-height:1.35}
+
+/* dots + search + dock */
+#dots{display:flex;gap:8px;margin:10px 0 12px}
+#dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4);transition:background .2s}
+#dots i.on{background:#fff}
+#sbox{width:min(150px,40vw);height:34px;border-radius:17px;display:flex;align-items:center;gap:6px;padding:0 12px;margin-bottom:12px}
+#sbox svg{width:14px;fill:none;stroke:#fff;stroke-width:2.2;opacity:.8}
+#q{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font:inherit;font-size:14px}
+#q::placeholder{color:rgba(255,255,255,.8)}
+#dock{width:calc(100% - 24px);max-width:456px;border-radius:34px;padding:14px 18px;display:flex;justify-content:space-around;
+ margin-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+#dock .app span{display:none}
+
+/* search results */
+#sr{position:fixed;inset:0;z-index:4;background:rgba(5,3,15,.55);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+ padding:calc(60px + env(safe-area-inset-top,0px)) 22px 90px;display:none;overflow:auto}
+#sr.on{display:block}
+#sr .grid{max-width:480px;margin:0 auto}
+#sr p{text-align:center;opacity:.7}
+#home #sbox{position:relative;z-index:6}
+
+/* app window */
+#win{position:fixed;inset:0;z-index:10;background:#000;display:none;opacity:0;transform:scale(.12);border-radius:44px;overflow:hidden;
+ transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s,border-radius .45s}
+#win.show{display:block}
+#win.open{opacity:1;transform:none;border-radius:0}
+#stage{position:absolute;inset:0}
+#stage ruffle-player{width:100%;height:100%;display:block}
+#close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:14px;z-index:2;width:38px;height:38px;border-radius:50%;
+ color:#fff;font-size:18px;display:grid;place-items:center;cursor:pointer;border:1px solid var(--edge);background:var(--glass);
+ backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);opacity:.85}
+#full{right:14px;left:auto}
+#bar{position:absolute;bottom:calc(6px + env(safe-area-inset-bottom,0px));left:50%;translate:-50% 0;width:140px;height:20px;z-index:2;cursor:pointer;
+ display:grid;place-items:center;border:0;background:none}
+#bar::after{content:"";width:134px;height:5px;border-radius:3px;background:rgba(255,255,255,.75)}
+#close:focus-visible,#bar:focus-visible{outline:3px solid #fff}
+@media (prefers-reduced-motion:reduce){#win,#home{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+
+<div id="status">
+  <span id="clock">9:41</span>
+  <span class="r">
+    <svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+    <svg viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0zM3.8 7.2a6 6 0 0 1 8.4 0l-1.2 1.2a4.3 4.3 0 0 0-6 0zM1.2 4.6a9.6 9.6 0 0 1 13.6 0l-1.2 1.2a7.9 7.9 0 0 0-11.2 0z"/></svg>
+    <svg viewBox="0 0 27 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="#fff" opacity=".5"/><rect x="2" y="2" width="19" height="8" rx="2"/><rect x="24" y="4" width="2" height="4" rx="1" opacity=".5"/></svg>
+  </span>
+</div>
+
+<main id="home">
+  <div id="pages"></div>
+  <div id="dots" role="tablist" aria-label="Pages"></div>
+  <label id="sbox" class="glass">
+    <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+    <input id="q" type="search" placeholder="Search" aria-label="Search games" autocomplete="off">
+  </label>
+  <nav id="dock" class="glass" aria-label="Favorites"></nav>
+</main>
+
+<div id="sr"><div class="grid" id="srg"></div><p id="none" hidden>No games found</p></div>
+
+<div id="win" role="dialog" aria-modal="true" aria-label="Game">
+  <button id="close" aria-label="Close game">&#10005;</button>
+  <div id="stage"></div>
+  <button id="bar" aria-label="Go home"></button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@0.1.0-nightly.2024.1.1/ruffle.js"></script>
+<script src="games.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const games = (window.GAMES || []).slice();
+let player = null, lastIcon = null;
+
+/* ---------- clock ---------- */
+function tick(){
+  const d = new Date();
+  $("#clock").textContent = d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}).replace(/\s?[AP]M/i,"");
+  const w = document.getElementById("wt"), wd = document.getElementById("wd");
+  if (w) w.textContent = $("#clock").textContent;
+  if (wd) wd.innerHTML = d.toLocaleDateString([], {weekday:"long"}) + "<br>" + d.toLocaleDateString([], {month:"long", day:"numeric"});
+}
+setInterval(tick, 10000);
+
+/* ---------- icons ---------- */
+function hue(s){ let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+function initials(t){
+  const w = t.replace(/[^A-Za-z0-9 ]/g, " ").split(/\s+/).filter(x => x && !/^(the|of|in|a|vs)$/i.test(x));
+  return ((w[0] || "?")[0] + (w[1] ? w[1][0] : "")).toUpperCase();
+}
+function makeApp(g){
+  const b = document.createElement("button");
+  b.className = "app";
+  const i = document.createElement("div");
+  i.className = "ico";
+  const h = hue(g.title);
+  i.style.background = `linear-gradient(160deg,hsl(${h},78%,64%),hsl(${(h+35)%360},80%,42%))`;
+  const fallback = () => { i.textContent = initials(g.title); };
+  if (g.thumb){
+    const im = new Image(); im.alt = ""; im.src = g.thumb;
+    im.onerror = () => { im.remove(); fallback(); };
+    i.appendChild(im);
+  } else fallback();
+  const s = document.createElement("span"); s.textContent = g.title;
+  b.append(i, s);
+  b.onclick = () => launch(g, b);
+  return b;
+}
+
+/* ---------- pages ---------- */
+function build(){
+  const pages = $("#pages"); pages.innerHTML = "";
+  const rows = Math.max(3, Math.min(6, Math.floor((innerHeight - 330) / 92)));
+  const first = Math.max(4, (rows - 2) * 4), per = rows * 4;
+  const favNames = ["Plants vs. Zombies","Pac-Man","Fireboy and Watergirl in The Forest Temple","Bloons Tower Defense 5"];
+  const favs = favNames.map(n => games.find(g => g.title === n)).filter(Boolean);
+  while (favs.length < 4 && games[favs.length]) { const g = games[favs.length]; if (!favs.includes(g)) favs.push(g); else break; }
+  const dock = $("#dock"); dock.innerHTML = ""; favs.slice(0, 4).forEach(g => dock.appendChild(makeApp(g)));
+
+  const chunks = []; let n = 0, size = first;
+  while (n < games.length || !chunks.length){ chunks.push(games.slice(n, n + size)); n += size; size = per; }
+  chunks.forEach((c, idx) => {
+    const p = document.createElement("section"); p.className = "page";
+    if (idx === 0){
+      const w = document.createElement("div"); w.className = "widget glass";
+      w.innerHTML = '<div class="t" id="wt"></div><div class="d" id="wd"></div>';
+      p.appendChild(w);
+    }
+    const g = document.createElement("div"); g.className = "grid";
+    c.forEach(x => g.appendChild(makeApp(x)));
+    p.appendChild(g); pages.appendChild(p);
+  });
+  const dots = $("#dots"); dots.innerHTML = "";
+  chunks.forEach((_, i) => { const d = document.createElement("i"); if (!i) d.className = "on";
+    d.onclick = () => pages.scrollTo({left: i * pages.clientWidth, behavior: "smooth"}); dots.appendChild(d); });
+  tick();
+}
+$("#pages").addEventListener("scroll", e => {
+  const i = Math.round(e.target.scrollLeft / e.target.clientWidth);
+  [...$("#dots").children].forEach((d, k) => d.classList.toggle("on", k === i));
+}, {passive: true});
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(build, 200); });
+
+/* ---------- search ---------- */
+$("#q").addEventListener("input", e => {
+  const t = e.target.value.trim().toLowerCase(), sr = $("#sr"), g = $("#srg");
+  g.innerHTML = "";
+  if (!t){ sr.classList.remove("on"); return; }
+  const res = games.filter(x => x.title.toLowerCase().includes(t));
+  res.forEach(x => g.appendChild(makeApp(x)));
+  $("#none").hidden = res.length > 0;
+  sr.classList.add("on");
+});
+addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if ($("#win").classList.contains("show")) closeGame();
+  else { $("#q").value = ""; $("#sr").classList.remove("on"); }
+});
+
+/* ---------- app window ---------- */
+function launch(g, btn){
+  const R = window.RufflePlayer && window.RufflePlayer.newest();
+  const win = $("#win"), r = btn.querySelector(".ico").getBoundingClientRect();
+  lastIcon = btn;
+  win.style.transformOrigin = `${r.left + r.width/2}px ${r.top + r.height/2}px`;
+  win.classList.add("show");
+  $("#stage").innerHTML = "";
+  if (R){ player = R.createPlayer(); $("#stage").appendChild(player); player.load(g.file); }
+  else $("#stage").innerHTML = '<p style="padding:90px 24px;text-align:center">The Flash player failed to load.</p>';
+  requestAnimationFrame(() => requestAnimationFrame(() => { win.classList.add("open"); $("#home").classList.add("away"); }));
+  setTimeout(() => $("#close").focus(), 460);
+}
+function closeGame(){
+  const win = $("#win");
+  if (lastIcon && document.contains(lastIcon)){
+    const r = lastIcon.querySelector(".ico").getBoundingClientRect();
+    win.style.transformOrigin = `${r.left + r.width/2}px ${r.top + r.height/2}px`;
+  }
+  win.classList.remove("open"); $("#home").classList.remove("away");
+  setTimeout(() => { if (player){ player.remove(); player = null; } $("#stage").innerHTML = ""; win.classList.remove("show");
+    if (lastIcon) lastIcon.focus(); }, 460);
+}
+$("#close").onclick = closeGame;
+$("#bar").onclick = closeGame;
+
+/* ---------- galaxy wallpaper ---------- */
+const cv = $("#sky"), cx = cv.getContext("2d");
+const still = matchMedia("(prefers-reduced-motion:reduce)").matches;
+let W, H, bg, parts = [], stars = [], shoot = null, ang = 0;
+
+function setup(){
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  W = cv.width = innerWidth * dpr; H = cv.height = innerHeight * dpr;
+  // nebula backdrop, drawn once
+  bg = document.createElement("canvas"); bg.width = W; bg.height = H;
+  const b = bg.getContext("2d");
+  b.fillStyle = "#05030f"; b.fillRect(0, 0, W, H);
+  [[.5,.4,.75,"110,50,200,.34"],[.25,.72,.5,"30,90,220,.24"],[.8,.25,.45,"220,60,160,.2"],[.55,.9,.5,"80,40,170,.22"]].forEach(([x,y,r,c]) => {
+    const g = b.createRadialGradient(W*x, H*y, 0, W*x, H*y, Math.max(W,H)*r);
+    g.addColorStop(0, `rgba(${c})`); g.addColorStop(1, "rgba(5,3,15,0)");
+    b.fillStyle = g; b.fillRect(0, 0, W, H);
+  });
+  // spiral galaxy particles
+  const R = Math.max(W, H) * .5, N = 2200; parts = [];
+  for (let i = 0; i < N; i++){
+    const r = Math.pow(Math.random(), 1.7) * R + 6, arm = i % 3;
+    const a = arm * Math.PI * 2 / 3 + r / R * 5.2 + (Math.random() - .5) * (.9 - r / R * .5);
+    const t = r / R, hu = 40 + t * 220;
+    parts.push({r, a, s: (Math.random() * 1.6 + .5) * dpr, c: `hsla(${hu},${60 + t*30}%,${90 - t*35}%,${.35 + Math.random()*.5})`});
+  }
+  stars = Array.from({length: 260}, () => ({x: Math.random()*W, y: Math.random()*H, s: (Math.random()*1.3+.3)*dpr, p: Math.random()*6.28, v: .5 + Math.random()*1.5}));
+}
+function frame(t){
+  cx.globalCompositeOperation = "source-over";
+  cx.drawImage(bg, 0, 0);
+  cx.globalCompositeOperation = "lighter";
+  for (const s of stars){
+    cx.globalAlpha = .35 + .65 * Math.abs(Math.sin(s.p + t * .001 * s.v));
+    cx.fillStyle = "#fff"; cx.fillRect(s.x, s.y, s.s, s.s);
+  }
+  cx.globalAlpha = 1;
+  const ox = W * .5, oy = H * .42, tilt = -.45, ct = Math.cos(tilt), st = Math.sin(tilt);
+  for (const p of parts){
+    const a = p.a + ang / (1 + p.r * .004);
+    const x = Math.cos(a) * p.r, y = Math.sin(a) * p.r * .46;
+    cx.fillStyle = p.c;
+    cx.fillRect(ox + x * ct - y * st, oy + x * st + y * ct, p.s, p.s);
+  }
+  const core = cx.createRadialGradient(ox, oy, 0, ox, oy, Math.min(W, H) * .22);
+  core.addColorStop(0, "rgba(255,235,200,.55)"); core.addColorStop(.35, "rgba(255,170,120,.16)"); core.addColorStop(1, "rgba(0,0,0,0)");
+  cx.fillStyle = core; cx.fillRect(0, 0, W, H);
+  if (!shoot && Math.random() < .002) shoot = {x: Math.random()*W*.8, y: Math.random()*H*.4, l: 0};
+  if (shoot){
+    shoot.l += 14; const x = shoot.x + shoot.l, y = shoot.y + shoot.l * .5;
+    const g = cx.createLinearGradient(x, y, x - 90, y - 45);
+    g.addColorStop(0, "rgba(255,255,255,.9)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    cx.strokeStyle = g; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x - 90, y - 45); cx.stroke();
+    if (shoot.l > 260) shoot = null;
+  }
+  if (!still){ ang += .0016; requestAnimationFrame(frame); }
+}
+setup(); requestAnimationFrame(frame);
+addEventListener("resize", () => { setup(); if (still) requestAnimationFrame(frame); });
+
+build();
+</script>
+</body>
+</html>
